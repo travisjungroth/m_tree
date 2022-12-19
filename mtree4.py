@@ -15,7 +15,7 @@ import editdistance
 DEFAULT_NODE_CAPACITY = 8
 
 Value = TypeVar("Value")
-Distance = float
+Distance = Union[float, int]
 
 
 @singledispatch
@@ -96,7 +96,7 @@ class Node(Generic[Value]):
         self.tree = tree
         self.value: Value = value
         self.parent: Optional[RouterNode] = None
-        self.radius: int = 0
+        self.radius: Distance = 0
 
         self.distance_function = self.tree.distance_function
 
@@ -126,8 +126,8 @@ class RouterNode(Node[Value]):
             raise ValueError
 
         super().__init__(tree, value)
-        self.is_leaf = is_leaf
-        self.capacity = capacity
+        self.is_leaf: bool = is_leaf
+        self.capacity: int = capacity
 
         self.children: list[Node] = []
         self.set_children(children)
@@ -139,21 +139,15 @@ class RouterNode(Node[Value]):
     def is_full(self):
         return len(self.children) >= self.capacity
 
-    @property
-    def radius(self):
-        return max(self.distance(value) for value in self)
-
-    @radius.setter
-    def radius(self, value):
-        pass
-
     def set_children(self, children: Sequence[Node]) -> None:
         self.value = children[0].value
         self.children.clear()
+        self.radius = 0
         for child in children:
             self.add_child(child)
 
     def add_child(self, child: Node):
+        self.radius = max(self.radius, self.distance(child.value) + child.radius)
         if self.is_full:
             self.split(child)
         else:
@@ -161,6 +155,7 @@ class RouterNode(Node[Value]):
             self.children.append(child)
 
     def insert(self, value: Value) -> RouterNode:
+        self.radius = max(self.radius, self.distance(value))
         if self.is_leaf:
             value_node = ValueNode(self.tree, value)
             self.add_child(value_node)
