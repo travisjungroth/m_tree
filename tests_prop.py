@@ -1,9 +1,10 @@
+from itertools import chain
 from typing import Any, Iterable
 
 from hypothesis import given, strategies as st
 from pytest import mark
 
-from mtree4 import MTree, RouterNode, Node, ValueNode
+from mtree4 import MTree, RouterNode, Node, LeafNode
 
 
 def get_nodes(node: Any, klass=Node) -> Iterable[RouterNode]:
@@ -17,15 +18,15 @@ def get_nodes(node: Any, klass=Node) -> Iterable[RouterNode]:
             yield from get_nodes(child, klass)
 
 
-def get_nodes_values_and_routers(tree: MTree) -> tuple[set[Node], set[ValueNode], set[RouterNode]]:
-    value_nodes, router_nodes = set(), set()
+def get_nodes_leaves_and_routers(tree: MTree) -> tuple[set[Node], set[LeafNode], set[RouterNode]]:
+    leaf_nodes, router_nodes = set(), set()
     nodes = set(get_nodes(tree))
     for node in nodes:
-        if isinstance(node, ValueNode):
-            value_nodes.add(node)
+        if isinstance(node, LeafNode):
+            leaf_nodes.add(node)
         else:
             router_nodes.add(node)
-    return nodes, value_nodes, router_nodes
+    return nodes, leaf_nodes, router_nodes
 
 
 def get_parents(node: Node) -> Iterable[RouterNode]:
@@ -62,12 +63,9 @@ def test_capacity(values, cap):
 @basic
 def test_parents(values, cap):
     tree = MTree(values, node_capacity=cap)
-    nodes, value_nodes, router_nodes = get_nodes_values_and_routers(tree)
-    parents = {node.parent for node in nodes if node.parent}
+    nodes, leaf_nodes, router_nodes = get_nodes_leaves_and_routers(tree)
+    parents = {node.parent for node in nodes if node.parent is not None}
     assert parents == router_nodes
-    value_parents = {node.parent for node in value_nodes}
-    leaves = {node for node in router_nodes if node.is_leaf}
-    assert leaves == value_parents
     for node in nodes:
         if node.parent is None:
             continue
@@ -80,7 +78,8 @@ def test_parents(values, cap):
 @basic
 def test_sufficient_radius(values, cap):
     tree = MTree(values, node_capacity=cap)
-    nodes, value_nodes, router_nodes = get_nodes_values_and_routers(tree)
-    for value_node in value_nodes:
-        for parent in get_parents(value_node):
-            assert parent.distance(value_node.value) <= parent.radius
+    nodes, leaf_nodes, router_nodes = get_nodes_leaves_and_routers(tree)
+    for leaf_node in leaf_nodes:
+        for child in leaf_node.children:
+            for node in chain(get_parents(leaf_node), [leaf_node]):
+                assert node.distance(child) <= node.radius
