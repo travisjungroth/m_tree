@@ -4,10 +4,10 @@ from typing import Any, Iterable
 from hypothesis import given, strategies as st
 from pytest import mark
 
-from mtree4 import MTree, RouterNode, Node, LeafNode, ParentNode
+from mtree4 import MTree, Node, ParentNode
 
 
-def get_nodes(node: Any, klass=Node) -> Iterable[RouterNode]:
+def get_nodes(node: Any, klass=Node) -> Iterable[ParentNode]:
     if isinstance(node, MTree):
         yield from get_nodes(node.root, klass)
         return
@@ -56,7 +56,7 @@ def test_capacity(values, cap):
     tree = MTree(node_capacity=cap)
     for value in values:
         tree.insert(value)
-    for node in get_nodes(tree, RouterNode):
+    for node in get_nodes(tree, ParentNode):
         assert len(node.children) <= cap
 
 
