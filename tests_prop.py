@@ -1,3 +1,5 @@
+from functools import partial
+from heapq import nsmallest
 from typing import Any, Iterable
 
 from hypothesis import given, strategies as st
@@ -63,3 +65,13 @@ def test_sufficient_radius(values, cap):
     for node in get_nodes(tree.root, ParentNode):
         for value in node:
             assert node.distance(value) <= node.radius
+
+
+class TestKnn:
+    @given(st.sets(st.text()), st.text(), st.integers(0))
+    def test_x(self, values, needle, k):
+        tree = MTree(values)
+        res = tree.knn(needle, k)
+        needle_distance = partial(tree.distance_function, needle)
+        assert res == sorted(res, key=needle_distance)
+        x = nsmallest(k, values, key=needle_distance)

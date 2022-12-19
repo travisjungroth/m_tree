@@ -75,6 +75,9 @@ class LimitedSet(Generic[Item]):
             heapq.heappop(self.pq)
         return float("inf") if len(self.items) < self.k else -self.pq[0][0]
 
+    def sorted(self) -> list[Item]:
+        return [item for item in sorted(self.pq) if item in self.items]
+
 
 class DistanceFunction:
     def __init__(self, fn: Callable = default_distance) -> None:
@@ -130,6 +133,27 @@ class MTree(Generic[Value]):
     def __iter__(self) -> Iterable[Value]:
         yield from self.root
 
+    def knn(self, value: Value, k: int) -> list[Value]:
+        assert k >= 0
+        if not k:
+            return []
+        if k >= self.length:
+            return sorted(self, key=partial(self.distance_function, value))
+        results = LimitedSet(k)
+        pq = PriorityQueue()
+        pq.push(self.root.min_distance(value), self.root)
+        while pq:
+            node: ParentNode
+            min_distance_q, node = pq.pop()
+            results.discard(node)
+            for child_node in node.children:
+                # if abs(node.distance(value) - node.distance(child_node.router)) - child_node.radius <= results.limit():
+                #     if child_node.min_distance(value) <= results.limit():
+                        if isinstance(child_node, ParentNode):
+                            pq.push(child_node.min_distance(value), child_node)
+                        results.add(child_node.max_distance(value), child_node)
+        return results.sorted()
+
 
 class Node(Generic[Value]):
     def __init__(self, tree: MTree[Value], router=Value) -> None:
@@ -143,6 +167,12 @@ class Node(Generic[Value]):
         if isinstance(item, Node):
             return self.distance_function(self.router, item.router) + item.radius
         return self.distance_function(self.router, item)
+
+    def min_distance(self, value: Value) -> Distance:
+        return max(0, self.distance_function(self.router, value) - self.radius)
+
+    def max_distance(self, value: Value) -> Distance:
+        return self.distance_function(self.router, value) + self.radius
 
 
 class ValueNode(Node[Value]):
