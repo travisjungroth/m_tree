@@ -59,7 +59,7 @@ class MTree(Generic[Value]):
         self.distance_function = distance_function
         self.node_capacity = node_capacity
         self.length = 0
-        self.root: Union[ParentNode[Value, Distance], tuple] = ()
+        self.root: Union[ParentNode[Value], tuple] = ()
         for value in values:
             self.insert(value)
 
@@ -84,8 +84,6 @@ class MTree(Generic[Value]):
         yield from self.root
 
 
-Child = TypeVar('Child', bound='Node')
-
 
 class Node(Generic[Value]):
 
@@ -96,7 +94,7 @@ class Node(Generic[Value]):
         self.parent = None
         self.radius = 0
 
-    def distance(self, item):
+    def distance(self, item: Union[Node, Value]) -> Distance:
         if isinstance(item, Node):
             return self.distance_function(self.router, item.router) + item.radius
         return self.distance_function(self.router, item)
@@ -113,32 +111,34 @@ class ValueNode(Node[Value]):
         return item == self.router
 
 
-class ParentNode(Node[Value], Generic[Value, Child]):
-    def __init__(self, tree: MTree[Value], children: Sequence[Child]) -> None:
+
+
+class ParentNode(Node[Value]):
+    def __init__(self, tree: MTree[Value], children: Sequence[Node]) -> None:
         super().__init__(tree=tree, router=None)
-        self.parent: Optional[ParentNode[Value, ParentNode]] = None
+        self.parent: Optional[ParentNode[Value]] = None
         self.radius = 0
-        self.children: list[Child] = []
+        self.children: list[Node] = []
         self.capacity = self.tree.node_capacity
         self.set_children(children)
 
     def __repr__(self):
         return f'<{repr(self.router)}, r={repr(self.radius)}, {repr(self.children)}>'
 
-    def set_children(self, children: Sequence[Child]) -> None:
+    def set_children(self, children: Sequence[Node]) -> None:
         self.router = children[0].router
         self.children.clear()
         for child in children:
             self._add_child(child)
         self.radius = max(self.distance(child) for child in children)
 
-    def add_child(self, child: Child):
+    def add_child(self, child: Node):
         if len(self.children) >= self.capacity:
             self.split(child)
         else:
             self._add_child(child)
 
-    def _add_child(self, child: Child):
+    def _add_child(self, child: Node):
         child.parent = self
         self.children.append(child)
         self.radius = max(self.radius, self.distance(child))
@@ -154,7 +154,7 @@ class ParentNode(Node[Value], Generic[Value, Child]):
     def __len__(self):
         return len(self.children)
 
-    def split(self, node: Child):
+    def split(self, node: Node):
         a_list, b_list = self.promote_and_partition(self.children + [node])
         self.set_children(a_list)
         new_node = self.__class__(tree=self.tree, children=b_list)
