@@ -47,13 +47,17 @@ class MTree(Generic[Value]):
     ):
         self.distance_fn = distance_fn
         self.size = 0
-        self.root = []
+        self.root: Union[RouterNode[Value, Distance], tuple] = ()
         for value in values:
             self.insert(value)
 
     def insert(self, value: Value) -> None:
         self.size += 1
-        self.root.append(value)
+        if isinstance(self.root, tuple):
+            value = ValueNode(value)
+            self.root = RouterNode(children=[value])
+        else:
+            self.root.insert(value)
 
     def __len__(self) -> int:
         return self.size
@@ -64,5 +68,37 @@ class MTree(Generic[Value]):
     def __repr__(self):
         return repr(self.root)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[Value]:
         yield from self.root
+
+
+class Node(Generic[Value]):
+    def __init__(self, value: Value) -> None:
+        self.value = value
+
+
+class ValueNode(Node[Value]):
+    # def __contains__(self, value: Value) -> bool:
+    #     return value == s
+    def __iter__(self):
+        yield self.value
+
+    def __contains__(self, item: Value):
+        return item == self.value
+
+
+class RouterNode(Node[Value]):
+    def __init__(self, children: Sequence[Node], value: Optional[Value] = None) -> None:
+        value = value if value is not None else children[0].value
+        super().__init__(value)
+        self.children = list(children)
+
+    def insert(self, value: Value):
+        self.children.append(ValueNode(value))
+
+    def __iter__(self):
+        for node in self.children:
+            yield from node
+
+    def __contains__(self, item: Value):
+        return any(item in node for node in self.children)
