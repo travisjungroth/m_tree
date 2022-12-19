@@ -17,14 +17,15 @@ def get_nodes(node: Any, klass=Node) -> Iterable[RouterNode]:
             yield from get_nodes(child, klass)
 
 
-def values_and_routers(tree: MTree) -> tuple[set[ValueNode], set[RouterNode]]:
+def values_and_routers(tree: MTree) -> tuple[set[Node], set[ValueNode], set[RouterNode]]:
     value_nodes, router_nodes = set(), set()
-    for node in get_nodes(tree):
+    nodes = set(get_nodes(tree))
+    for node in nodes:
         if isinstance(node, ValueNode):
             value_nodes.add(node)
         else:
             router_nodes.add(node)
-    return value_nodes, router_nodes
+    return nodes, value_nodes, router_nodes
 
 
 @fixture(params=[2, 8], scope='session')
@@ -60,8 +61,7 @@ def test_capacity(values, cap):
 @basic
 def test_parents(values, cap):
     tree = MTree(values, node_capacity=cap)
-    value_nodes, router_nodes = values_and_routers(tree)
-    nodes = value_nodes | router_nodes
+    nodes, value_nodes, router_nodes = values_and_routers(tree)
     parents = {node.parent for node in nodes if node.parent}
     assert parents == router_nodes
     value_parents = {node.parent for node in value_nodes}
