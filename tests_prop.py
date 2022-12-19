@@ -35,7 +35,7 @@ def get_nodes(node: Any, klass=Node) -> Iterable[ParentNode]:
 #         yield from get_parents(node.parent)
 
 
-values_strategy = st.sets(st.text()) | st.sets(st.integers(min_value=0))
+values_strategy = st.sets(st.integers(min_value=0)) | st.sets(st.text())
 
 
 def basic(f):
@@ -79,7 +79,6 @@ def test_parents(values, cap):
 @basic
 def test_sufficient_radius(values, cap):
     tree = MTree(values, node_capacity=cap)
-    nodes = get_nodes(tree.root, ParentNode)
-    for node in nodes:
+    for node in get_nodes(tree.root, ParentNode):
         for value in node:
             assert node.distance(value) <= node.radius
