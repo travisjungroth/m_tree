@@ -84,7 +84,6 @@ class MTree(Generic[Value]):
         yield from self.root
 
 
-
 class Node(Generic[Value]):
 
     def __init__(self, tree: MTree[Value], router=Value) -> None:
@@ -109,8 +108,6 @@ class ValueNode(Node[Value]):
 
     def __contains__(self, item):
         return item == self.router
-
-
 
 
 class ParentNode(Node[Value]):
