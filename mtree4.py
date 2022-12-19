@@ -146,11 +146,16 @@ class ParentNode(Node[Value]):
         else:
             self.children: list[ParentNode]
             self.radius = max(self.radius, self.distance(value))
-            distances = [(child, child.distance(value)) for child in self.children]
-            child, distance = min(distances, key=itemgetter(1))
-            if distance >= child.radius:
-                child, _ = min(distances, key=lambda x: x[1] - x[0].radius)
-            child.insert(value)
+            node = min(self.children, key=lambda x: x.distance(value))
+            if not node.covers(value):
+                node = min(self.children, key=lambda x: x.increase_required(value))
+            node.insert(value)
+
+    def covers(self, value: Value) -> bool:
+        return self.distance(value) <= self.radius
+
+    def increase_required(self, value: Value):
+        return self.distance(value) - self.radius
 
     def __len__(self):
         return len(self.children)
