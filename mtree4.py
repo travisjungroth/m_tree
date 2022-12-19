@@ -192,7 +192,12 @@ class RouterNode(Node[Value]):
         return RouterNode(tree=self.tree, children=children, capacity=self.capacity, is_leaf=is_leaf)
 
     @staticmethod
-    def promote_and_partition(candidates: list[Node]):
-        random.shuffle(candidates)
-        half = len(candidates) // 2
-        return candidates[:half], candidates[half:]
+    def promote_and_partition(candidates: list[Node]) -> tuple[list[Node], list[Node]]:
+        a, b, *nodes = candidates
+        a_list, b_list = [a], [b]
+        for node in nodes:
+            if node.distance(a) < node.distance(b):
+                a_list.append(node)
+            else:
+                b_list.append(node)
+        return a_list, b_list
