@@ -18,6 +18,7 @@ DEFAULT_NODE_CAPACITY = 8
 Value = TypeVar("Value")
 Distance = Union[int, float]
 Comparable = Distance
+Item = TypeVar('Item')
 
 
 @singledispatch
@@ -30,25 +31,22 @@ def _(a: str, b: str):
     return editdistance.eval(a, b)
 
 
-class PriorityQueue(Generic[Value]):
+class PriorityQueue(Generic[Item]):
     def __init__(self) -> None:
-        self.items: list[tuple[Comparable, int, Value]] = []
+        self.items: list[tuple[Comparable, int, Item]] = []
         self.count = 0  # incrementing tie-breaker for comparisons
 
     def __bool__(self):
         return bool(self.items)
 
-    def push(self, priority: Comparable, item: Value) -> None:
+    def push(self, priority: Comparable, item: Item) -> None:
         new = priority, self.count, item
         heapq.heappush(self.items, new)
         self.count += 1
 
-    def pop(self) -> tuple[Comparable, Value]:
+    def pop(self) -> tuple[Comparable, Item]:
         priority, count, item = heapq.heappop(self.items)
         return priority, item
-
-
-Item = TypeVar('Item')
 
 
 class FixedPQ(Generic[Item]):
