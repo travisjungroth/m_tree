@@ -17,7 +17,7 @@ def get_nodes(node: Any, klass=Node) -> Iterable[RouterNode]:
             yield from get_nodes(child, klass)
 
 
-def values_and_routers(tree: MTree) -> tuple[set[Node], set[ValueNode], set[RouterNode]]:
+def get_nodes_values_and_routers(tree: MTree) -> tuple[set[Node], set[ValueNode], set[RouterNode]]:
     value_nodes, router_nodes = set(), set()
     nodes = set(get_nodes(tree))
     for node in nodes:
@@ -26,6 +26,12 @@ def values_and_routers(tree: MTree) -> tuple[set[Node], set[ValueNode], set[Rout
         else:
             router_nodes.add(node)
     return nodes, value_nodes, router_nodes
+
+
+def get_parents(node: Node) -> Iterable[RouterNode]:
+    if node.parent is not None:
+        yield node.parent
+        yield from get_parents(node.parent)
 
 
 @fixture(params=[2, 8], scope='session')
@@ -61,7 +67,7 @@ def test_capacity(values, cap):
 @basic
 def test_parents(values, cap):
     tree = MTree(values, node_capacity=cap)
-    nodes, value_nodes, router_nodes = values_and_routers(tree)
+    nodes, value_nodes, router_nodes = get_nodes_values_and_routers(tree)
     parents = {node.parent for node in nodes if node.parent}
     assert parents == router_nodes
     value_parents = {node.parent for node in value_nodes}
@@ -75,3 +81,11 @@ def test_parents(values, cap):
         for child in parent.children:
             assert child.parent is parent
 
+
+@basic
+def test_radius(values, cap):
+    tree = MTree(values, node_capacity=cap)
+    nodes, value_nodes, router_nodes = get_nodes_values_and_routers(tree)
+    for value_node in value_nodes:
+        for parent in get_parents(value_node):
+            assert parent.distance(value_node.value) <= parent.radius

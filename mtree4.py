@@ -4,7 +4,7 @@ import heapq
 import random
 from collections import deque
 from collections.abc import Iterable, Sequence
-from functools import partial, cache
+from functools import partial, cache, singledispatch, wraps
 from itertools import chain, combinations, permutations
 from operator import itemgetter
 from time import sleep
@@ -18,8 +18,14 @@ Value = TypeVar("Value")
 Distance = float
 
 
+@singledispatch
 def default_distance(a, b):
     return abs(a - b)
+
+
+@default_distance.register
+def _(a: str, b: str):
+    return editdistance.eval(a, b)
 
 
 class DistanceFunction:
@@ -47,9 +53,9 @@ class MTree(Generic[Value]):
             values: Iterable[Value] = (),
             *,
             node_capacity=DEFAULT_NODE_CAPACITY,
-            distance_fn: Callable[[Value, Value], Distance] = default_distance,
+            distance_function: Callable[[Value, Value], Distance] = default_distance,
     ):
-        self.distance_fn = distance_fn
+        self.distance_function = distance_function
         self.node_capacity = node_capacity
         self.length = 0
         self.root: Union[RouterNode[Value, Distance], tuple] = ()
@@ -59,7 +65,7 @@ class MTree(Generic[Value]):
     def insert(self, value: Value) -> None:
         self.length += 1
         if isinstance(self.root, tuple):
-            self.root = RouterNode(value=value, capacity=self.node_capacity, is_leaf=True)
+            self.root = RouterNode(tree=self, value=value, capacity=self.node_capacity, is_leaf=True)
         else:
             self.root = self.root.insert(value)
 
@@ -76,10 +82,27 @@ class MTree(Generic[Value]):
         yield from self.root
 
 
+# def valued(f: Callable[[Node, Value], Distance]) -> Callable[[Node, Union[Value, Node]], Distance]:
+#     @wraps(f)
+#     def g(self, value: Union[Value, Node]) -> Distance:
+#         if isinstance(value, Node):
+#             value = value.value
+#         return f(self, value)
+#     return g
+
+
 class Node(Generic[Value]):
-    def __init__(self, value: Value) -> None:
-        self.value = value
+    def __init__(self, tree: MTree[Value], value: Value) -> None:
+        self.tree = tree
+        self.value: Value = value
         self.parent: Optional[RouterNode] = None
+        self.radius: int = 0
+
+        self.distance_function = self.tree.distance_function
+
+    # @valued
+    def distance(self, value: Value) -> Distance:
+        return self.distance_function(self.value, value)
 
 
 class ValueNode(Node[Value]):
@@ -94,15 +117,15 @@ class ValueNode(Node[Value]):
 
 
 class RouterNode(Node[Value]):
-    def __init__(self, children=(), *, capacity: int, is_leaf: bool, value: Value = None) -> None:
+    def __init__(self, tree: MTree, children=(), *, capacity: int, is_leaf: bool, value: Value = None) -> None:
         if children:
             value = children[0].value
         elif value is not None:
-            children = [ValueNode(value)]
+            children = [ValueNode(tree, value)]
         else:
             raise ValueError
 
-        super().__init__(value)
+        super().__init__(tree, value)
         self.is_leaf = is_leaf
         self.capacity = capacity
 
@@ -110,11 +133,19 @@ class RouterNode(Node[Value]):
         self.set_children(children)
 
     def __repr__(self):
-        return f'<{repr(self.value)}, {repr(self.children)}>'
+        return f'<{repr(self.value)}, r={repr(self.radius)}, {repr(self.children)}>'
 
     @property
     def is_full(self):
         return len(self.children) >= self.capacity
+
+    @property
+    def radius(self):
+        return max(self.distance(value) for value in self)
+
+    @radius.setter
+    def radius(self, value):
+        pass
 
     def set_children(self, children: Sequence[Node]) -> None:
         self.value = children[0].value
@@ -131,7 +162,7 @@ class RouterNode(Node[Value]):
 
     def insert(self, value: Value) -> RouterNode:
         if self.is_leaf:
-            value_node = ValueNode(value)
+            value_node = ValueNode(self.tree, value)
             self.add_child(value_node)
         else:
             node = random.choice(self.children)
@@ -158,7 +189,7 @@ class RouterNode(Node[Value]):
 
     def mimic(self, *, children, is_leaf=None) -> RouterNode:
         is_leaf = is_leaf if is_leaf is not None else self.is_leaf
-        return RouterNode(children=children, capacity=self.capacity, is_leaf=is_leaf)
+        return RouterNode(tree=self.tree, children=children, capacity=self.capacity, is_leaf=is_leaf)
 
     @staticmethod
     def promote_and_partition(candidates: list[Node]):
