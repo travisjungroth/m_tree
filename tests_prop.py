@@ -1,8 +1,6 @@
-from itertools import chain
 from typing import Any, Iterable
 
 from hypothesis import given, strategies as st
-from pytest import mark
 
 from mtree4 import MTree, Node, ParentNode
 
@@ -16,23 +14,6 @@ def get_nodes(node: Any, klass=Node) -> Iterable[ParentNode]:
     if isinstance(node, ParentNode):
         for child in node.children:
             yield from get_nodes(child, klass)
-
-
-# def get_nodes_leaves_and_routers(tree: MTree) -> tuple[set[Node], set[LeafNode], set[RouterNode]]:
-#     leaf_nodes, router_nodes = set(), set()
-#     nodes = set(get_nodes(tree))
-#     for node in nodes:
-#         if isinstance(node, LeafNode):
-#             leaf_nodes.add(node)
-#         else:
-#             router_nodes.add(node)
-#     return nodes, leaf_nodes, router_nodes
-
-
-# def get_parents(node: ParentNode) -> Iterable[RouterNode]:
-#     if node.parent is not None:
-#         yield node.parent
-#         yield from get_parents(node.parent)
 
 
 values_strategy = st.sets(st.integers(min_value=0)) | st.sets(st.text())
