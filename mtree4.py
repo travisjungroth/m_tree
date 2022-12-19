@@ -45,6 +45,7 @@ class MTree(Generic[Value]):
     def __init__(
             self,
             values: Iterable[Value] = (),
+            *,
             node_capacity=DEFAULT_NODE_CAPACITY,
             distance_fn: Callable[[Value, Value], Distance] = default_distance,
     ):
@@ -78,6 +79,7 @@ class MTree(Generic[Value]):
 class Node(Generic[Value]):
     def __init__(self, value: Value) -> None:
         self.value = value
+        self.parent: Optional[RouterNode] = None
 
 
 class ValueNode(Node[Value]):
@@ -87,9 +89,12 @@ class ValueNode(Node[Value]):
     def __contains__(self, item: Value):
         return item == self.value
 
+    def __repr__(self):
+        return f'<{repr(self.value)}>'
+
 
 class RouterNode(Node[Value]):
-    def __init__(self, children=(), *, capacity: int, is_leaf: bool, value: Value=None) -> None:
+    def __init__(self, children=(), *, capacity: int, is_leaf: bool, value: Value = None) -> None:
         if children:
             value = children[0].value
         elif value is not None:
@@ -100,10 +105,12 @@ class RouterNode(Node[Value]):
         super().__init__(value)
         self.is_leaf = is_leaf
         self.capacity = capacity
-        self.parent: Optional[RouterNode] = None
 
         self.children: list[Node] = []
         self.set_children(children)
+
+    def __repr__(self):
+        return f'<{repr(self.value)}, {repr(self.children)}>'
 
     @property
     def is_full(self):
@@ -117,7 +124,7 @@ class RouterNode(Node[Value]):
 
     def add_child(self, child: Node):
         if self.is_full:
-            raise
+            self.split(child)
         else:
             child.parent = self
             self.children.append(child)
@@ -125,10 +132,7 @@ class RouterNode(Node[Value]):
     def insert(self, value: Value) -> RouterNode:
         if self.is_leaf:
             value_node = ValueNode(value)
-            if len(self.children) >= self.capacity:
-                self.split(value_node)
-            else:
-                self.add_child(value_node)
+            self.add_child(value_node)
         else:
             node = random.choice(self.children)
             node.insert(value)
@@ -141,23 +145,23 @@ class RouterNode(Node[Value]):
     def __contains__(self, item: Value):
         return any(item in node for node in self.children)
 
+    def __len__(self):
+        return len(self.children)
+
     def split(self, node: Node):
         a_list, b_list = self.promote_and_partition(self.children + [node])
         self.set_children(a_list)
         new_node = self.mimic(children=b_list)
         if self.parent is None:
-            self.mimic(children=[self, new_node])
-        elif len(self.parent.children) < self.capacity:
-            self.parent.add_child(new_node)
-        else:
-            self.parent.split(new_node)
+            self.mimic(children=[self], is_leaf=False)
+        self.parent.add_child(new_node)
 
-    def mimic(self, children) -> RouterNode:
-        return RouterNode(children=children, capacity=self.capacity, is_leaf=self.is_leaf)
+    def mimic(self, *, children, is_leaf=None) -> RouterNode:
+        is_leaf = is_leaf if is_leaf is not None else self.is_leaf
+        return RouterNode(children=children, capacity=self.capacity, is_leaf=is_leaf)
 
     @staticmethod
     def promote_and_partition(candidates: list[Node]):
         random.shuffle(candidates)
         half = len(candidates) // 2
         return candidates[:half], candidates[half:]
-

@@ -3,18 +3,28 @@ from typing import Any, Iterable
 from pytest import fixture
 from hypothesis import given, strategies as st, example
 
-from mtree4 import MTree, RouterNode
+from mtree4 import MTree, RouterNode, Node, ValueNode
 
 
-def all_router_nodes(tree: MTree) -> Iterable[RouterNode]:
-    yield from _all_router_nodes(tree.root)
-
-
-def _all_router_nodes(node: Any) -> Iterable[RouterNode]:
-    if isinstance(node, RouterNode):
+def get_nodes(node: Any, klass=Node) -> Iterable[RouterNode]:
+    if isinstance(node, MTree):
+        yield from get_nodes(node.root, klass)
+        return
+    if isinstance(node, klass):
         yield node
+    if isinstance(node, RouterNode):
         for child in node.children:
-            yield from _all_router_nodes(child)
+            yield from get_nodes(child, klass)
+
+
+def values_and_routers(tree: MTree) -> tuple[set[ValueNode], set[RouterNode]]:
+    value_nodes, router_nodes = set(), set()
+    for node in get_nodes(tree):
+        if isinstance(node, ValueNode):
+            value_nodes.add(node)
+        else:
+            router_nodes.add(node)
+    return value_nodes, router_nodes
 
 
 @fixture(params=[2, 8], scope='session')
@@ -30,7 +40,6 @@ def basic(f):
 
 
 @basic
-@example(values={''}, cap=2)
 def test_tree_basics(values, cap):
     tree = MTree(values, node_capacity=cap)
     assert len(tree) == len(values)
@@ -41,8 +50,28 @@ def test_tree_basics(values, cap):
 
 @basic
 def test_capacity(values, cap):
-    tree = MTree([], node_capacity=cap)
+    tree = MTree(node_capacity=cap)
     for value in values:
         tree.insert(value)
-    for node in all_router_nodes(tree):
+    for node in get_nodes(tree, RouterNode):
         assert len(node.children) <= cap
+
+
+@basic
+def test_parents(values, cap):
+    tree = MTree(values, node_capacity=cap)
+    value_nodes, router_nodes = values_and_routers(tree)
+    nodes = value_nodes | router_nodes
+    parents = {node.parent for node in nodes if node.parent}
+    assert parents == router_nodes
+    value_parents = {node.parent for node in value_nodes}
+    leaves = {node for node in router_nodes if node.is_leaf}
+    assert leaves == value_parents
+    for node in nodes:
+        if node.parent is None:
+            continue
+        assert node in node.parent.children
+    for parent in parents:
+        for child in parent.children:
+            assert child.parent is parent
+
