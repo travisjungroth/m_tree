@@ -98,12 +98,12 @@ class RouterNode(Node[Value]):
             raise ValueError
 
         super().__init__(value)
-        self.children: list[Node] = []
-        self.set_children(children)
-
         self.is_leaf = is_leaf
         self.capacity = capacity
         self.parent: Optional[RouterNode] = None
+
+        self.children: list[Node] = []
+        self.set_children(children)
 
     @property
     def is_full(self):
@@ -116,8 +116,11 @@ class RouterNode(Node[Value]):
             self.add_child(child)
 
     def add_child(self, child: Node):
-        child.parent = self
-        self.children.append(child)
+        if self.is_full:
+            raise
+        else:
+            child.parent = self
+            self.children.append(child)
 
     def insert(self, value: Value) -> RouterNode:
         if self.is_leaf:
