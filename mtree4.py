@@ -18,7 +18,7 @@ DEFAULT_NODE_CAPACITY = 8
 Value = TypeVar("Value")
 Distance = Union[int, float]
 Comparable = Distance
-Item = TypeVar('Item')
+Item = TypeVar("Item")
 
 
 @singledispatch
@@ -49,43 +49,31 @@ class PriorityQueue(Generic[Item]):
         return priority, item
 
 
-class FixedPQ(Generic[Item]):
+class LimitedSet(Generic[Item]):
     def __init__(self, k: int) -> None:
         self.pq: list[tuple[Comparable, int, Item]] = []
         self.count = 0  # incrementing tie-breaker for comparisons
         self.k = k
         self.items: set[Item] = set()
 
-    def __bool__(self):
-        return bool(self.items)
-
-    def __len__(self):
-        return len(self.items)
-
-    def push(self, priority: Comparable, item: Item) -> None:
-        """
-        Assumes item not in queue
-        """
-        entry = -priority, self.count, item
-        self.count += 1
+    def add(self, priority: Comparable, item: Item) -> None:
+        if priority > self.limit():
+            return
         self.items.add(item)
+        entry = -priority, self.count, item
         heapq.heappush(self.pq, entry)
-        if len(self) > self.k:
-            self.pop()
-
-    def pop(self) -> Item:
-        self.clear()
-        _, _, item = heapq.heappop(self.pq)
-        self.items.remove(item)
-        self.clear()
-        return item
-
-    def clear(self):
-        while self.pq and self.pq[0][2] not in self.items:
-            heapq.heappop(self.pq)
+        if len(self.items) > self.k:
+            _, _, item = heapq.heappop(self.pq)
+            self.items.remove(item)
+        self.count += 1
 
     def discard(self, item: Item) -> None:
         self.items.discard(item)
+
+    def limit(self):
+        while self.pq and self.pq[0][2] not in self.items:
+            heapq.heappop(self.pq)
+        return float("inf") if len(self.items) < self.k else -self.pq[0][0]
 
 
 class DistanceFunction:
@@ -109,11 +97,11 @@ class DistanceFunction:
 
 class MTree(Generic[Value]):
     def __init__(
-            self,
-            values: Iterable[Value] = (),
-            *,
-            node_capacity=DEFAULT_NODE_CAPACITY,
-            distance_function: Callable[[Value, Value], Distance] = default_distance,
+        self,
+        values: Iterable[Value] = (),
+        *,
+        node_capacity=DEFAULT_NODE_CAPACITY,
+        distance_function: Callable[[Value, Value], Distance] = default_distance,
     ):
         self.distance_function = distance_function
         self.node_capacity = node_capacity
@@ -144,7 +132,6 @@ class MTree(Generic[Value]):
 
 
 class Node(Generic[Value]):
-
     def __init__(self, tree: MTree[Value], router=Value) -> None:
         self.tree = tree
         self.distance_function = self.tree.distance_function
@@ -160,7 +147,7 @@ class Node(Generic[Value]):
 
 class ValueNode(Node[Value]):
     def __repr__(self):
-        return f'<{repr(self.router)}>'
+        return f"<{repr(self.router)}>"
 
     def __iter__(self):
         yield self.router
@@ -179,7 +166,7 @@ class ParentNode(Node[Value]):
         self.set_children(children)
 
     def __repr__(self):
-        return f'<{repr(self.router)}, r={repr(self.radius)}, {repr(self.children)}>'
+        return f"<{repr(self.router)}, r={repr(self.radius)}, {repr(self.children)}>"
 
     def set_children(self, children: Sequence[Node]) -> None:
         self.router = children[0].router

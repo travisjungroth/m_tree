@@ -1,6 +1,8 @@
+import random
+
 from hypothesis import given, strategies as st, assume
 
-from mtree4 import PriorityQueue, FixedPQ
+from mtree4 import PriorityQueue, LimitedSet
 
 
 @given(...)
@@ -21,17 +23,13 @@ def test_pq(value_to_priority: dict[float, int], pops: list[bool]):
 
 
 @given(value_to_priority=..., k=st.integers(min_value=1), pops=...)
-def test_fixed_pq(value_to_priority: dict[int, int], k: int, pops: list[bool]):
-    seen = set()
-    pq = FixedPQ(k)
+def test_limited_set(value_to_priority: dict[int, int], k: int, pops: list[bool]):
+    limited_set = LimitedSet(k)
     for item, p in value_to_priority.items():
-        pq.push(p, item)
-        seen.add(item)
+        before = limited_set.items.copy()
+        limited_set.add(p, item)
+        assert limited_set.items >= before
         if pops and pops.pop():
-            pq.discard(seen.pop())
-    last_p = float('inf')
-    while pq:
-        item = pq.pop()
-        p = value_to_priority[item]
-        assert p <= last_p
-        last_p = p
+            removal = random.choice(list(limited_set.items))
+            limited_set.discard(removal)
+            assert removal not in limited_set.items
