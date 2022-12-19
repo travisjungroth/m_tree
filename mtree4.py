@@ -82,13 +82,13 @@ class MTree(Generic[Value]):
         yield from self.root
 
 
-# def valued(f: Callable[[Node, Value], Distance]) -> Callable[[Node, Union[Value, Node]], Distance]:
-#     @wraps(f)
-#     def g(self, value: Union[Value, Node]) -> Distance:
-#         if isinstance(value, Node):
-#             value = value.value
-#         return f(self, value)
-#     return g
+def valued(f: Callable[[Node, Value], Distance]) -> Callable[[Union[Value, Node]], Distance]:
+    @wraps(f)
+    def g(self: Node, value: Union[Value, Node]) -> Distance:
+        if isinstance(value, Node):
+            value = value.value
+        return f(self, value)
+    return g
 
 
 class Node(Generic[Value]):
@@ -100,7 +100,7 @@ class Node(Generic[Value]):
 
         self.distance_function = self.tree.distance_function
 
-    # @valued
+    @valued
     def distance(self, value: Value) -> Distance:
         return self.distance_function(self.value, value)
 
@@ -147,19 +147,19 @@ class RouterNode(Node[Value]):
             self.add_child(child)
 
     def add_child(self, child: Node):
-        self.radius = max(self.radius, self.distance(child.value) + child.radius)
         if self.is_full:
             self.split(child)
         else:
+            self.radius = max(self.radius, self.distance(child) + child.radius)
             child.parent = self
             self.children.append(child)
 
     def insert(self, value: Value) -> RouterNode:
-        self.radius = max(self.radius, self.distance(value))
         if self.is_leaf:
             value_node = ValueNode(self.tree, value)
             self.add_child(value_node)
         else:
+            self.radius = max(self.radius, self.distance(value))
             node = random.choice(self.children)
             node.insert(value)
         return self.parent or self
