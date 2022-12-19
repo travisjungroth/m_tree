@@ -21,16 +21,6 @@ Comparable = Distance
 Item = TypeVar("Item")
 
 
-@singledispatch
-def default_distance(a, b):
-    return abs(a - b)
-
-
-@default_distance.register
-def _(a: str, b: str):
-    return editdistance.eval(a, b)
-
-
 class PriorityQueue(Generic[Item]):
     def __init__(self) -> None:
         self.items: list[tuple[Comparable, int, Item]] = []
@@ -79,6 +69,12 @@ class LimitedSet(Generic[Item]):
         return [item[2] for item in sorted(self.pq, reverse=True) if item[2] in self.items]
 
 
+def default_distance(a, b):
+    if isinstance(a, str):
+        return editdistance.eval(a, b)
+    return abs(a - b)
+
+
 class DistanceFunction:
     def __init__(self, fn: Callable = default_distance) -> None:
         self.fn = cache(fn)
@@ -100,11 +96,11 @@ class DistanceFunction:
 
 class MTree(Generic[Value]):
     def __init__(
-        self,
-        values: Iterable[Value] = (),
-        *,
-        node_capacity=DEFAULT_NODE_CAPACITY,
-        distance_function: Callable[[Value, Value], Distance] = default_distance,
+            self,
+            values: Iterable[Value] = (),
+            *,
+            node_capacity=DEFAULT_NODE_CAPACITY,
+            distance_function: Callable[[Value, Value], Distance] = DistanceFunction(),
     ):
         self.distance_function = distance_function
         self.node_capacity = node_capacity
@@ -149,9 +145,9 @@ class MTree(Generic[Value]):
             for child_node in node.children:
                 # if abs(node.distance(value) - node.distance(child_node.router)) - child_node.radius <= results.limit():
                 #     if child_node.min_distance(value) <= results.limit():
-                        if isinstance(child_node, ParentNode):
-                            pq.push(child_node.min_distance(value), child_node)
-                        results.add(child_node.max_distance(value), child_node)
+                if isinstance(child_node, ParentNode):
+                    pq.push(child_node.min_distance(value), child_node)
+                results.add(child_node.max_distance(value), child_node)
         return [node.router for node in results.sorted()]
 
 
