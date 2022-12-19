@@ -59,7 +59,7 @@ class MTree(Generic[Value]):
         self.length += 1
         if isinstance(self.root, tuple):
             self.root = RouterNode(value=value, capacity=self.node_capacity, is_leaf=True, tree=self)
-        self.root.insert(value)
+        self.root = self.root.insert(value)
 
     def __len__(self) -> int:
         return self.length
@@ -96,7 +96,7 @@ class RouterNode(Node[Value]):
         self.parent: Optional[RouterNode] = None
         self.children: list[Node] = []
 
-    def insert(self, value: Value):
+    def insert(self, value: Value) -> RouterNode:
         if self.is_leaf:
             value_node = ValueNode(value)
             if len(self.children) >= self.capacity:
@@ -106,6 +106,7 @@ class RouterNode(Node[Value]):
         else:
             node = random.choice(self.children)
             node.insert(value)
+        return self.parent or self
 
     def __iter__(self):
         for node in self.children:
@@ -127,16 +128,13 @@ class RouterNode(Node[Value]):
         if self.parent is None:
             root = self.mimic(value=self.value)
             root.shove_children([self, new_node])
-            self.tree.root = root
         elif len(self.parent.children) < self.capacity:
             self.parent.children.append(new_node)
         else:
             self.parent.split(new_node)
 
-
     def mimic(self, value: Value) -> RouterNode:
         return RouterNode(value=value, capacity=self.capacity, is_leaf=self.is_leaf, tree=self.tree)
-
 
     @staticmethod
     def promote_and_partition(candidates: list[Node]):
