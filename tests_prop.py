@@ -68,10 +68,13 @@ def test_sufficient_radius(values, cap):
 
 
 class TestKnn:
-    @given(st.sets(st.text()), st.text(), st.integers(0))
+    @given(st.sets(st.text(), min_size=1), st.text(), st.integers(1))
     def test_x(self, values, needle, k):
         tree = MTree(values)
         res = tree.knn(needle, k)
         needle_distance = partial(tree.distance_function, needle)
+        assert len(res) == min(k, len(values))
         assert res == sorted(res, key=needle_distance)
         x = nsmallest(k, values, key=needle_distance)
+        actual_furthest = max(x, key=needle_distance)
+        assert needle_distance(res[-1]) == needle_distance(actual_furthest)

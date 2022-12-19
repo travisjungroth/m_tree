@@ -76,7 +76,7 @@ class LimitedSet(Generic[Item]):
         return float("inf") if len(self.items) < self.k else -self.pq[0][0]
 
     def sorted(self) -> list[Item]:
-        return [item for item in sorted(self.pq) if item in self.items]
+        return [item[2] for item in sorted(self.pq) if item[2] in self.items]
 
 
 class DistanceFunction:
@@ -152,7 +152,7 @@ class MTree(Generic[Value]):
                         if isinstance(child_node, ParentNode):
                             pq.push(child_node.min_distance(value), child_node)
                         results.add(child_node.max_distance(value), child_node)
-        return results.sorted()
+        return [node.router for node in results.sorted()]
 
 
 class Node(Generic[Value]):
