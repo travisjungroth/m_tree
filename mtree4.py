@@ -66,7 +66,7 @@ class MTree(Generic[Value]):
     def insert(self, value: Value) -> None:
         self.length += 1
         if isinstance(self.root, tuple):
-            self.root = LeafNode(tree=self, children=[value])
+            self.root = LeafNode(tree=self, children=[ValueNode(self, value)])
         else:
             self.root.insert(value)
             self.root = self.root.parent or self.root
@@ -87,52 +87,57 @@ class MTree(Generic[Value]):
 Child = TypeVar('Child')
 
 
-class Node(Generic[Value, Child]):
-    def __init__(self, tree: MTree[Value], children: Sequence[Child]) -> None:
+class Node(Generic[Value]):
+    def __init__(self, tree: MTree[Value], router=Value) -> None:
         self.tree = tree
-        self.parent: Optional[RouterNode] = None
         self.distance_function = self.tree.distance_function
-        self.children = []
-        self.capacity = self.tree.node_capacity
-        self.router = None
-        self.radius = 0
-        self.set_children(children)
-
-    @staticmethod
-    def unwrap(item):
-        if isinstance(item, Node):
-            return item.router
-        return item
-
-    def distance_between(self, a: Child, b: Child):
-        return self.distance_function(self.unwrap(a), self.unwrap(b))
+        self.router = router
+        self.parent = None
 
     def distance(self, item):
         if isinstance(item, Node):
-            return self.distance_function(self.router, item.router) + item.radius
+            return self.distance_function(self.router, item.router) + getattr(item, 'radius', 0)
         return self.distance_function(self.router, item)
+
+
+class ValueNode(Node[Value]):
+    def __repr__(self):
+        return f'<{repr(self.router)}>'
+
+    def __iter__(self):
+        yield self.router
+
+    def __contains__(self, item):
+        return item == self.router
+
+
+class ParentNode(Node[Value], Generic[Value, Child]):
+    def __init__(self, tree: MTree[Value], children: Sequence[Child]) -> None:
+        super().__init__(tree=tree, router=None)
+        self.parent: Optional[RouterNode] = None
+        self.radius = 0
+        self.children = []
+        self.capacity = self.tree.node_capacity
+        self.set_children(children)
 
     def __repr__(self):
         return f'<{repr(self.router)}, r={repr(self.radius)}, {repr(self.children)}>'
 
-    @property
-    def is_full(self):
-        return len(self.children) >= self.capacity
-
-    def set_children(self, children: Sequence[Node]) -> None:
-        self.router = children[0].router if isinstance(children[0], Node) else children[0]
+    def set_children(self, children: Sequence[Child]) -> None:
+        self.router = children[0].router
         self.children.clear()
         for child in children:
             self._add_child(child)
         self.radius = max(self.distance(child) for child in children)
 
-    def add_child(self, child):
-        if self.is_full:
+    def add_child(self, child: Child):
+        if len(self.children) >= self.capacity:
             self.split(child)
         else:
             self._add_child(child)
 
-    def _add_child(self, child):
+    def _add_child(self, child: Child):
+        child.parent = self
         self.children.append(child)
         self.radius = max(self.radius, self.distance(child))
 
@@ -142,7 +147,7 @@ class Node(Generic[Value, Child]):
     def __len__(self):
         return len(self.children)
 
-    def split(self, node: Node):
+    def split(self, node: Child):
         a_list, b_list = self.promote_and_partition(self.children + [node])
         self.set_children(a_list)
         new_node = self.__class__(tree=self.tree, children=b_list)
@@ -155,22 +160,11 @@ class Node(Generic[Value, Child]):
         a, b, *items = candidates
         a_list, b_list = [a], [b]
         for item in items:
-            if self.distance_between(a, item) < self.distance_between(b, item):
+            if a.distance(item) < b.distance(item):
                 a_list.append(item)
             else:
                 b_list.append(item)
         return a_list, b_list
-
-
-class RouterNode(Node[Value, Node]):
-    def insert(self, value: Value) -> None:
-        self.radius = max(self.radius, self.distance(value))
-        node = random.choice(self.children)
-        node.insert(value)
-
-    def _add_child(self, child: Node):
-        super()._add_child(child)
-        child.parent = self
 
     def __iter__(self) -> Iterable[Value]:
         for node in self.children:
@@ -180,14 +174,15 @@ class RouterNode(Node[Value, Node]):
         return any(item in node for node in self.children)
 
 
-class LeafNode(Node[Value, Value]):
-    def __iter__(self) -> Iterable[Value]:
-        yield from self.children
-
-    def __contains__(self, item: Value):
-        return item in self.children
-
+class RouterNode(ParentNode[Value, ParentNode]):
     def insert(self, value: Value) -> None:
-        self.add_child(value)
+        self.radius = max(self.radius, self.distance(value))
+        node = random.choice(self.children)
+        node.insert(value)
+
+
+class LeafNode(ParentNode[Value, ValueNode]):
+    def insert(self, value: Value) -> None:
+        self.add_child(ValueNode(self.tree, value))
 
 
