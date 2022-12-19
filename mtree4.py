@@ -92,17 +92,20 @@ def valued(f: Callable[[Node, Value], Distance]) -> Callable[[Union[Value, Node]
 
 
 class Node(Generic[Value]):
-    radius = 0
-
     def __init__(self, tree: MTree[Value], value: Value) -> None:
         self.tree = tree
         self.value: Value = value
         self.parent: Optional[RouterNode] = None
         self.distance_function = self.tree.distance_function
+        self.radius = 0
 
     @valued
     def distance(self, value: Value) -> Distance:
         return self.distance_function(self.value, value)
+
+    @valued
+    def max_distance(self, value: Value) -> Distance:
+        return self.distance_function(self.value, value) + self.radius
 
 
 class ValueNode(Node[Value]):
@@ -125,7 +128,6 @@ class RouterNode(Node[Value]):
             children = [ValueNode(tree, value)]
         else:
             raise ValueError
-        self._radius = None
 
         super().__init__(tree, value)
         self.is_leaf: bool = is_leaf
@@ -141,32 +143,27 @@ class RouterNode(Node[Value]):
     def is_full(self):
         return len(self.children) >= self.capacity
 
-    @property
-    def radius(self):
-        if self._radius is None:
-            self._radius = max(map(self.distance, self))
-        return self._radius
-
     def set_children(self, children: Sequence[Node]) -> None:
         self.value = children[0].value
         self.children.clear()
         for child in children:
             self.add_child(child)
+        self.radius = max(child.max_distance(self) for child in children)
 
     def add_child(self, child: Node):
-        self._radius = None
         if self.is_full:
             self.split(child)
         else:
             child.parent = self
             self.children.append(child)
+            self.radius = max(self.radius, self.distance(child))
 
     def insert(self, value: Value) -> RouterNode:
         if self.is_leaf:
             value_node = ValueNode(self.tree, value)
             self.add_child(value_node)
         else:
-            self._radius = None
+            self.radius = max(self.radius, self.distance(value))
             node = random.choice(self.children)
             node.insert(value)
         return self.parent or self
@@ -186,8 +183,9 @@ class RouterNode(Node[Value]):
         self.set_children(a_list)
         new_node = self.mimic(children=b_list)
         if self.parent is None:
-            self.mimic(children=[self], is_leaf=False)
-        self.parent.add_child(new_node)
+            self.mimic(children=[self, new_node], is_leaf=False)
+        else:
+            self.parent.add_child(new_node)
 
     def mimic(self, *, children, is_leaf=None) -> RouterNode:
         is_leaf = is_leaf if is_leaf is not None else self.is_leaf
