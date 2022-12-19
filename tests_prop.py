@@ -2,7 +2,7 @@ from functools import partial
 from heapq import nsmallest
 from typing import Any, Iterable
 
-from hypothesis import given, strategies as st
+from hypothesis import given, strategies as st, settings
 
 from mtree4 import MTree, Node, ParentNode
 
@@ -69,6 +69,7 @@ def test_sufficient_radius(values, cap):
 
 class TestKnn:
     @given(st.sets(st.text(), min_size=1), st.text(), st.integers(1))
+    @settings(max_examples=1000)
     def test_x(self, values, needle, k):
         tree = MTree(values)
         res = tree.knn(needle, k)

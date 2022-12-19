@@ -76,7 +76,7 @@ class LimitedSet(Generic[Item]):
         return float("inf") if len(self.items) < self.k else -self.pq[0][0]
 
     def sorted(self) -> list[Item]:
-        return [item[2] for item in sorted(self.pq) if item[2] in self.items]
+        return [item[2] for item in sorted(self.pq, reverse=True) if item[2] in self.items]
 
 
 class DistanceFunction:
