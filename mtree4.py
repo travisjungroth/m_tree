@@ -144,9 +144,13 @@ class ParentNode(Node[Value]):
         if isinstance(self.children[0], ValueNode):
             self.add_child(ValueNode(self.tree, value))
         else:
+            self.children: list[ParentNode]
             self.radius = max(self.radius, self.distance(value))
-            node = random.choice(self.children)
-            node.insert(value)
+            distances = [(child, child.distance(value)) for child in self.children]
+            child, distance = min(distances, key=itemgetter(1))
+            if distance >= child.radius:
+                child, _ = min(distances, key=lambda x: x[1] - x[0].radius)
+            child.insert(value)
 
     def __len__(self):
         return len(self.children)
