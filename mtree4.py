@@ -16,7 +16,8 @@ import editdistance
 DEFAULT_NODE_CAPACITY = 8
 
 Value = TypeVar("Value")
-Distance = TypeVar("Distance", int, float)
+Distance = Union[int, float]
+Comparable = Distance
 
 
 @singledispatch
@@ -29,22 +30,64 @@ def _(a: str, b: str):
     return editdistance.eval(a, b)
 
 
-class PriorityQueue(Generic[Value, Distance]):
+class PriorityQueue(Generic[Value]):
     def __init__(self) -> None:
-        self.items: list[tuple[Distance, int, Value]] = []
+        self.items: list[tuple[Comparable, int, Value]] = []
         self.count = 0  # incrementing tie-breaker for comparisons
 
     def __bool__(self):
         return bool(self.items)
 
-    def push(self, distance: Distance, item: Value) -> None:
-        new = distance, self.count, item
+    def push(self, priority: Comparable, item: Value) -> None:
+        new = priority, self.count, item
         heapq.heappush(self.items, new)
         self.count += 1
 
-    def pop(self) -> tuple[Distance, Value]:
+    def pop(self) -> tuple[Comparable, Value]:
         priority, count, item = heapq.heappop(self.items)
         return priority, item
+
+
+Item = TypeVar('Item')
+
+
+class FixedPQ(Generic[Item]):
+    def __init__(self, k: int) -> None:
+        self.pq: list[tuple[Comparable, int, Item]] = []
+        self.count = 0  # incrementing tie-breaker for comparisons
+        self.k = k
+        self.items: set[Item] = set()
+
+    def __bool__(self):
+        return bool(self.items)
+
+    def __len__(self):
+        return len(self.items)
+
+    def push(self, priority: Comparable, item: Item) -> None:
+        """
+        Assumes item not in queue
+        """
+        entry = -priority, self.count, item
+        self.count += 1
+        self.items.add(item)
+        heapq.heappush(self.pq, entry)
+        if len(self) > self.k:
+            self.pop()
+
+    def pop(self) -> Item:
+        self.clear()
+        _, _, item = heapq.heappop(self.pq)
+        self.items.remove(item)
+        self.clear()
+        return item
+
+    def clear(self):
+        while self.pq and self.pq[0][2] not in self.items:
+            heapq.heappop(self.pq)
+
+    def discard(self, item: Item) -> None:
+        self.items.discard(item)
 
 
 class DistanceFunction:
