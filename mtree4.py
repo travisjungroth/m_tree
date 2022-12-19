@@ -92,12 +92,12 @@ def valued(f: Callable[[Node, Value], Distance]) -> Callable[[Union[Value, Node]
 
 
 class Node(Generic[Value]):
+    radius = 0
+
     def __init__(self, tree: MTree[Value], value: Value) -> None:
         self.tree = tree
         self.value: Value = value
         self.parent: Optional[RouterNode] = None
-        self.radius: Distance = 0
-
         self.distance_function = self.tree.distance_function
 
     @valued
@@ -117,6 +117,7 @@ class ValueNode(Node[Value]):
 
 
 class RouterNode(Node[Value]):
+
     def __init__(self, tree: MTree, children=(), *, capacity: int, is_leaf: bool, value: Value = None) -> None:
         if children:
             value = children[0].value
@@ -124,6 +125,7 @@ class RouterNode(Node[Value]):
             children = [ValueNode(tree, value)]
         else:
             raise ValueError
+        self._radius = None
 
         super().__init__(tree, value)
         self.is_leaf: bool = is_leaf
@@ -139,18 +141,23 @@ class RouterNode(Node[Value]):
     def is_full(self):
         return len(self.children) >= self.capacity
 
+    @property
+    def radius(self):
+        if self._radius is None:
+            self._radius = max(map(self.distance, self))
+        return self._radius
+
     def set_children(self, children: Sequence[Node]) -> None:
         self.value = children[0].value
         self.children.clear()
-        self.radius = 0
         for child in children:
             self.add_child(child)
 
     def add_child(self, child: Node):
+        self._radius = None
         if self.is_full:
             self.split(child)
         else:
-            self.radius = max(self.radius, self.distance(child) + child.radius)
             child.parent = self
             self.children.append(child)
 
@@ -159,7 +166,7 @@ class RouterNode(Node[Value]):
             value_node = ValueNode(self.tree, value)
             self.add_child(value_node)
         else:
-            self.radius = max(self.radius, self.distance(value))
+            self._radius = None
             node = random.choice(self.children)
             node.insert(value)
         return self.parent or self
