@@ -1,14 +1,9 @@
 from __future__ import annotations
 
 import heapq
-import random
-from collections import deque
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
-from functools import partial, cache, singledispatch, wraps, singledispatchmethod
-from itertools import chain, combinations, permutations
-from operator import itemgetter
-from time import sleep
+from functools import cache
+from itertools import zip_longest
 from typing import Optional, Callable, Generic, TypeVar, Union
 
 import editdistance
@@ -65,13 +60,15 @@ class LimitedSet(Generic[Item]):
             heapq.heappop(self.pq)
         return float("inf") if len(self.items) < self.k else -self.pq[0][0]
 
-    def sorted(self) -> list[Item]:
-        return [item[2] for item in sorted(self.pq, reverse=True) if item[2] in self.items]
+    def __iter__(self) -> Iterable[Item]:
+        return (item[2] for item in self.pq if item[2] in self.items)
 
 
 def default_distance(a, b):
     if isinstance(a, str):
         return editdistance.eval(a, b)
+    if isinstance(a, tuple):
+        return sum(abs(x - y) for x, y in zip_longest(a, b, fillvalue=0))
     return abs(a - b)
 
 
@@ -96,11 +93,13 @@ class DistanceFunction:
 
 class MTree(Generic[Value]):
     def __init__(
-            self,
-            values: Iterable[Value] = (),
-            *,
-            node_capacity=DEFAULT_NODE_CAPACITY,
-            distance_function: Callable[[Value, Value], Distance] = DistanceFunction(),
+        self,
+        values: Iterable[Value] = (),
+        *,
+        node_capacity=DEFAULT_NODE_CAPACITY,
+        distance_function: Union[
+            Callable[[Value, Value], Distance], DistanceFunction
+        ] = default_distance,
     ):
         self.distance_function = distance_function
         self.node_capacity = node_capacity
@@ -134,7 +133,7 @@ class MTree(Generic[Value]):
         if not k:
             return []
         if k >= self.length:
-            return sorted(self, key=partial(self.distance_function, value))
+            return list(self)
         results = LimitedSet(k)
         pq = PriorityQueue()
         pq.push(self.root.min_distance(value), self.root)
@@ -143,12 +142,16 @@ class MTree(Generic[Value]):
             min_distance_q, node = pq.pop()
             results.discard(node)
             for child_node in node.children:
-                # if abs(node.distance(value) - node.distance(child_node.router)) - child_node.radius <= results.limit():
-                #     if child_node.min_distance(value) <= results.limit():
-                if isinstance(child_node, ParentNode):
-                    pq.push(child_node.min_distance(value), child_node)
-                results.add(child_node.max_distance(value), child_node)
-        return [node.router for node in results.sorted()]
+                if (
+                    abs(node.distance(value) - node.distance(child_node.router))
+                    - child_node.radius
+                    <= results.limit()
+                ):
+                    if child_node.min_distance(value) <= results.limit():
+                        if isinstance(child_node, ParentNode):
+                            pq.push(child_node.min_distance(value), child_node)
+                        results.add(child_node.max_distance(value), child_node)
+        return [node.router for node in results]
 
 
 class Node(Generic[Value]):
@@ -219,8 +222,9 @@ class ParentNode(Node[Value]):
             self.children: list[ParentNode]
             self.radius = max(self.radius, self.distance(value))
             node = min(self.children, key=lambda x: x.distance(value))
-            if not node.covers(value):
-                node = min(self.children, key=lambda x: x.increase_required(value))
+            # seems to increase costs
+            # if not node.covers(value):
+            #     node = min(self.children, key=lambda x: x.increase_required(value))
             node.insert(value)
 
     def covers(self, value: Value) -> bool:
@@ -242,9 +246,9 @@ class ParentNode(Node[Value]):
             self.parent.add_child(new_node)
 
     def promote_and_partition(self, candidates: list) -> tuple[list, list]:
-        a, b, *items = candidates
+        a, b, *candidates = candidates
         a_list, b_list = [a], [b]
-        for item in items:
+        for item in candidates:
             if a.distance(item) < b.distance(item):
                 a_list.append(item)
             else:

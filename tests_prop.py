@@ -1,10 +1,11 @@
 from functools import partial
 from heapq import nsmallest
+from random import randint
 from typing import Any, Iterable
 
 from hypothesis import given, strategies as st, settings
 
-from mtree4 import MTree, Node, ParentNode
+from mtree4 import MTree, Node, ParentNode, DistanceFunction
 
 
 def get_nodes(node: Any, klass=Node) -> Iterable[ParentNode]:
@@ -67,15 +68,40 @@ def test_sufficient_radius(values, cap):
             assert node.distance(value) <= node.radius
 
 
+vectors = st.tuples(st.integers(), st.integers())
+
+
 class TestKnn:
-    @given(st.sets(st.text(), min_size=1), st.text(), st.integers(1))
-    @settings(max_examples=1000)
-    def test_x(self, values, needle, k):
+    @given(st.sets(vectors, min_size=1), vectors, st.integers(1))
+    @settings(max_examples=10000)
+    def test_correct(self, values, needle, k):
         tree = MTree(values)
         res = tree.knn(needle, k)
         needle_distance = partial(tree.distance_function, needle)
         assert len(res) == min(k, len(values))
-        assert res == sorted(res, key=needle_distance)
+        res = sorted(res, key=needle_distance)
         x = nsmallest(k, values, key=needle_distance)
         actual_furthest = max(x, key=needle_distance)
         assert needle_distance(res[-1]) == needle_distance(actual_furthest)
+
+    def test_efficient(self):
+        searches = 10
+        size = 10 ** 4
+
+        def vector():
+            dim = 3
+            space = 10 ** 10
+            return tuple(randint(0, space) for _ in range(dim))
+
+        values = {(vector()) for _ in range(size)}
+        k = 4
+        tree = MTree(values, distance_function=DistanceFunction(), node_capacity=8)
+
+        print()
+        for _ in range(searches):
+            needle = vector()
+            tree.distance_function.reset_counter()
+            assert not tree.distance_function.call_count
+            tree.knn(needle, k)
+            assert tree.distance_function.call_count < len(values)
+            print(tree.distance_function.call_count, len(values))
