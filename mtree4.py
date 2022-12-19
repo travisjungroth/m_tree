@@ -58,8 +58,9 @@ class MTree(Generic[Value]):
     def insert(self, value: Value) -> None:
         self.length += 1
         if isinstance(self.root, tuple):
-            self.root = RouterNode(value=value, capacity=self.node_capacity, is_leaf=True, tree=self)
-        self.root = self.root.insert(value)
+            self.root = RouterNode(value=value, capacity=self.node_capacity, is_leaf=True)
+        else:
+            self.root = self.root.insert(value)
 
     def __len__(self) -> int:
         return self.length
@@ -88,13 +89,35 @@ class ValueNode(Node[Value]):
 
 
 class RouterNode(Node[Value]):
-    def __init__(self, value: Value, tree: MTree, capacity: int, is_leaf: bool) -> None:
+    def __init__(self, children=(), *, capacity: int, is_leaf: bool, value: Value=None) -> None:
+        if children:
+            value = children[0].value
+        elif value is not None:
+            children = [ValueNode(value)]
+        else:
+            raise ValueError
+
         super().__init__(value)
-        self.tree = tree
+        self.children: list[Node] = []
+        self.set_children(children)
+
         self.is_leaf = is_leaf
         self.capacity = capacity
         self.parent: Optional[RouterNode] = None
-        self.children: list[Node] = []
+
+    @property
+    def is_full(self):
+        return len(self.children) >= self.capacity
+
+    def set_children(self, children: Sequence[Node]) -> None:
+        self.value = children[0].value
+        self.children.clear()
+        for child in children:
+            self.add_child(child)
+
+    def add_child(self, child: Node):
+        child.parent = self
+        self.children.append(child)
 
     def insert(self, value: Value) -> RouterNode:
         if self.is_leaf:
@@ -102,7 +125,7 @@ class RouterNode(Node[Value]):
             if len(self.children) >= self.capacity:
                 self.split(value_node)
             else:
-                self.children.append(value_node)
+                self.add_child(value_node)
         else:
             node = random.choice(self.children)
             node.insert(value)
@@ -117,24 +140,17 @@ class RouterNode(Node[Value]):
 
     def split(self, node: Node):
         a_list, b_list = self.promote_and_partition(self.children + [node])
-
-        self.value = a_list[0].value
-        self.children.clear()
-        self.shove_children(a_list)
-
-        new_node = self.mimic(value=b_list[0].value)
-        new_node.shove_children(b_list)
-
+        self.set_children(a_list)
+        new_node = self.mimic(children=b_list)
         if self.parent is None:
-            root = self.mimic(value=self.value)
-            root.shove_children([self, new_node])
+            self.mimic(children=[self, new_node])
         elif len(self.parent.children) < self.capacity:
-            self.parent.children.append(new_node)
+            self.parent.add_child(new_node)
         else:
             self.parent.split(new_node)
 
-    def mimic(self, value: Value) -> RouterNode:
-        return RouterNode(value=value, capacity=self.capacity, is_leaf=self.is_leaf, tree=self.tree)
+    def mimic(self, children) -> RouterNode:
+        return RouterNode(children=children, capacity=self.capacity, is_leaf=self.is_leaf)
 
     @staticmethod
     def promote_and_partition(candidates: list[Node]):
@@ -142,7 +158,3 @@ class RouterNode(Node[Value]):
         half = len(candidates) // 2
         return candidates[:half], candidates[half:]
 
-    def shove_children(self, children: Iterable[Node]) -> None:
-        for child in children:
-            child.parent = self
-            self.children.append(child)
