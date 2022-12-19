@@ -52,6 +52,7 @@ class MTree(Generic[Value]):
             self.insert(value)
 
     def insert(self, value: Value) -> None:
+        self.size += 1
         self.root.append(value)
 
     def __len__(self) -> int:
