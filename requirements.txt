@@ -2,3 +2,4 @@ hypothesis
 editdistance
 pytest
 ruff
+black

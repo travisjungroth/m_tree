@@ -86,11 +86,11 @@ class TestKnn:
 
     def test_efficient(self):
         searches = 10
-        size = 10 ** 4
+        size = 10**4
 
         def vector():
             dim = 3
-            space = 10 ** 10
+            space = 10**10
             return tuple(randint(0, space) for _ in range(dim))
 
         values = {(vector()) for _ in range(size)}

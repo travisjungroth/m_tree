@@ -9,6 +9,7 @@ def elements(n):
     def g(f):
         strats = [st.integers(), st.text()]
         return given(st.one_of(*[st.tuples(*repeat(s, n)) for s in strats]))(f)
+
     return g
 
 

@@ -1,9 +1,25 @@
 from __future__ import annotations
 
 from itertools import chain
-from typing import Collection, Iterable, Union, Callable, Iterator, Generic, Sequence, Optional
+from typing import (
+    Collection,
+    Iterable,
+    Union,
+    Callable,
+    Iterator,
+    Generic,
+    Sequence,
+    Optional,
+)
 
-from m_tree.helpers import Value, Distance, DistanceFunction, default_distance, LimitedSet, PriorityQueue
+from m_tree.helpers import (
+    Value,
+    Distance,
+    DistanceFunction,
+    default_distance,
+    LimitedSet,
+    PriorityQueue,
+)
 
 DEFAULT_NODE_CAPACITY = 8
 
@@ -150,7 +166,7 @@ class ParentNode(Node[Value]):
     def increase_required(self, value: Value) -> Distance:
         return self.distance(value) - self.radius
 
-    def __len__(self)   -> int:
+    def __len__(self) -> int:
         return len(self.children)
 
     def split(self, node: Node) -> None:
