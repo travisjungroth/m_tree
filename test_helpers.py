@@ -2,7 +2,7 @@ import random
 
 from hypothesis import given, strategies as st, assume
 
-from mtree4 import PriorityQueue, LimitedSet
+from m_tree import PriorityQueue, LimitedSet
 
 
 @given(...)
