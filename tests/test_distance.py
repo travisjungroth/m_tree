@@ -2,7 +2,7 @@ from itertools import repeat
 
 from hypothesis import strategies as st, given
 
-from m_tree import default_distance
+from m_tree.helpers import default_distance
 
 
 def elements(n):

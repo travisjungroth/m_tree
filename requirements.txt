@@ -1,3 +1,4 @@
 hypothesis
 editdistance
 pytest
+ruff

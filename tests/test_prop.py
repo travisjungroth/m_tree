@@ -5,7 +5,7 @@ from typing import Any, Iterable
 
 from hypothesis import given, strategies as st, settings
 
-from m_tree import MTree, Node, ParentNode, DistanceFunction
+from m_tree.classes import MTree, Node, ParentNode, DistanceFunction
 
 
 def get_nodes(node: Any, klass=Node) -> Iterable[ParentNode]:
