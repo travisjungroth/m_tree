@@ -1,6 +1,6 @@
 # M-Tree
 
-![License: MIT](https://img.shields.io/github/license/travisjungroth/m_tree)
+[![License: MIT](https://img.shields.io/github/license/travisjungroth/m_tree?color=blue)](https://github.com/travisjungroth/m_tree/blob/main/LICENSE)
 
 An M-Tree is an efficient access method for similarity search in [metric spaces](https://en.wikipedia.org/wiki/Metric_space). It has better time complexity than other KNN algorithms. In practice, with a fast distance function, much simpler algorithms are faster. Where it does well is when the distance function is order of magnitudes slower than the tree operations, like an API call or a database query. You should essentially view it as a KNN on a metric space that minimizes the number of distance function calls.
 
