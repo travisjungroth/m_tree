@@ -73,7 +73,6 @@ vectors = st.tuples(st.integers(), st.integers())
 
 class TestKnn:
     @given(st.sets(vectors, min_size=1), vectors, st.integers(1))
-    @settings(max_examples=10000)
     def test_correct(self, values, needle, k):
         tree = MTree(values)
         res = tree.knn(needle, k)
