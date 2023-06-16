@@ -40,7 +40,7 @@ class MTree(Collection[Value]):
     def __contains__(self, item: Value) -> bool:
         return item in self.root
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return repr(self.root)
 
     def __iter__(self) -> Iterator[Value]:
@@ -93,13 +93,13 @@ class Node(Generic[Value]):
 
 
 class ValueNode(Node[Value]):
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<{repr(self.router)}>"
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Value]:
         yield self.router
 
-    def __contains__(self, item):
+    def __contains__(self, item) -> bool:
         return item == self.router
 
 
@@ -122,13 +122,13 @@ class ParentNode(Node[Value]):
             self._add_child(child)
         self.radius = max(self.distance(child) for child in children)
 
-    def add_child(self, child: Node):
+    def add_child(self, child: Node) -> None:
         if len(self.children) >= self.capacity:
             self.split(child)
         else:
             self._add_child(child)
 
-    def _add_child(self, child: Node):
+    def _add_child(self, child: Node) -> None:
         child.parent = self
         self.children.append(child)
         self.radius = max(self.radius, self.distance(child))
@@ -148,13 +148,13 @@ class ParentNode(Node[Value]):
     def covers(self, value: Value) -> bool:
         return self.distance(value) <= self.radius
 
-    def increase_required(self, value: Value):
+    def increase_required(self, value: Value) -> Distance:
         return self.distance(value) - self.radius
 
-    def __len__(self):
+    def __len__(self)   -> int:
         return len(self.children)
 
-    def split(self, node: Node):
+    def split(self, node: Node) -> None:
         a_list, b_list = self.promote_and_partition(node)
         self.set_children(a_list)
         new_node = self.__class__(tree=self.tree, children=b_list)
