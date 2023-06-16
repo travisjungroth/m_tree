@@ -49,3 +49,6 @@ for point in points:
 knn = mtree.knn(value=(4, 5), k=2)
 print(knn)  # Output: [(3, 4), (5, 6)]
 ```
+\---
+
+Ⓜ️🎄
